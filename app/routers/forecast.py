@@ -139,14 +139,19 @@ def get_field_forecast(
         current_risk_score=current_risk["risk_score"],
         forecast=weather_forecast
     )
-    forecast_alert = create_forecast_alert(
-    db=db,
-    field_id=field.id,
-    crop=field.crop,
-    disease=diagnosis.disease,
-    forecast=forecast,
-    language=current_user.language
-)
+    forecast_alert = None
+    try:
+        forecast_alert = create_forecast_alert(
+            db=db,
+            field_id=field.id,
+            crop=field.crop,
+            disease=diagnosis.disease,
+            forecast=forecast,
+            language=current_user.language,
+        )
+    except Exception:
+        # An alert persistence failure must not hide a valid forecast.
+        db.rollback()
 
     return {
     "field_id": field.id,
