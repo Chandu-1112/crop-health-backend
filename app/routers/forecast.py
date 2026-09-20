@@ -13,7 +13,7 @@ from app.core.dependencies import get_current_user
 
 from app.services.risk_engine import calculate_risk
 from app.services.forecast import calculate_forecast_risk
-from app.services.weather import get_weather_forecast
+from app.services.weather import get_weather, get_weather_forecast
 
 
 router = APIRouter(
@@ -77,19 +77,36 @@ def get_field_forecast(
     )
 
     if weather is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No weather data found for this field"
-        )
+        try:
+            live_weather = get_weather(
+                field.farm.latitude,
+                field.farm.longitude,
+            )
+            weather_values = {
+                "temperature": live_weather.get("temperature"),
+                "humidity": live_weather.get("humidity"),
+                "rainfall": live_weather.get("rainfall"),
+            }
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Current weather is unavailable: {str(error)}"
+            )
+    else:
+        weather_values = {
+            "temperature": weather.temperature,
+            "humidity": weather.humidity,
+            "rainfall": weather.rainfall,
+        }
 
     # 4. Calculate current risk
     current_risk = calculate_risk(
         disease=diagnosis.disease,
         confidence=diagnosis.confidence or 0.0,
         severity=diagnosis.severity or "unknown",
-        temperature=weather.temperature,
-        humidity=weather.humidity,
-        rainfall=weather.rainfall,
+        temperature=weather_values["temperature"],
+        humidity=weather_values["humidity"],
+        rainfall=weather_values["rainfall"],
         growth_stage=field.growth_stage
     )
 
