@@ -26,6 +26,36 @@ router = APIRouter(
     tags=["Diagnosis"]
 )
 
+@router.get("/field/{field_id}/latest")
+def get_latest_field_diagnosis(
+    field_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    diagnosis = (
+        db.query(Diagnosis)
+        .join(Field)
+        .join(Farm)
+        .filter(
+            Field.id == field_id,
+            Farm.user_id == current_user.id,
+        )
+        .order_by(Diagnosis.created_at.desc())
+        .first()
+    )
+
+    if diagnosis is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No diagnosis found for this field",
+        )
+
+    return {
+        "disease": diagnosis.disease,
+        "confidence": diagnosis.confidence,
+        "severity": diagnosis.severity,
+    }
+
 
 @router.post(
     "/analyze",
