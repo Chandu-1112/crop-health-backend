@@ -9,6 +9,7 @@ from fastapi import (
 )
 from fastapi.responses import Response
 from typing import List
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -19,6 +20,7 @@ from app.models.user import User
 from app.schemas.diagnosis import DiagnosisResponse
 from app.core.dependencies import get_current_user
 from app.services.disease import analyze_crop_image
+from app.services.hotspot import create_hotspot_alerts
 
 
 router = APIRouter(
@@ -150,6 +152,17 @@ def analyze_crop(
     db.add(diagnosis)
     db.commit()
     db.refresh(diagnosis)
+
+    try:
+        create_hotspot_alerts(
+            db=db,
+            diagnosis=diagnosis,
+            source_farm=field.farm,
+        )
+    except SQLAlchemyError:
+        # Hotspot notifications are supplementary and must not hide a
+        # successfully saved diagnosis.
+        db.rollback()
 
     return diagnosis
 
