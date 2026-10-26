@@ -1,5 +1,6 @@
 #Requirements
 fastapi
+psycopg
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
